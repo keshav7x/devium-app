@@ -16,6 +16,23 @@ cp .env.example .env
 <package-manager> run db:migrate
 ```
 
+If the Auth feature was selected, register and use JWT bearer tokens with:
+
+```bash
+curl -i -X POST http://localhost:3000/api/auth/register \
+  -H 'content-type: application/json' \
+  -d '{"email":"you@example.com","password":"a-strong-password","name":"You"}'
+
+curl -i -X POST http://localhost:3000/api/auth/login \
+  -H 'content-type: application/json' \
+  -d '{"email":"you@example.com","password":"a-strong-password"}'
+
+curl -i http://localhost:3000/api/auth/me \
+  -H 'authorization: Bearer TOKEN'
+```
+
+The auth scaffold uses Argon2id password hashing and short-lived JWT access tokens. Set `JWT_SECRET` to a random string with at least 32 characters. If auth rate limiting was enabled, set `REDIS_URL` too.
+
 ## Development
 
 ```bash

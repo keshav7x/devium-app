@@ -156,17 +156,29 @@ export async function getProjectConfig(
 
   // 7. FEATURES
   frame(panel("Extra Modules", cfg, 5, "modules"));
+  const selectableFeatures = FEATURE_KEYS.filter((key) => key !== "rateLimit");
   const selectedFeatures = ask(
     await multiselect<FeatureKey>({
       message: "Toggle additional modules (Space to select, Enter to confirm):",
       required: false,
-      options: FEATURE_KEYS.map((key) => ({
+      options: selectableFeatures.map((key) => ({
         value: key,
         label: FEATURE_LABELS[key],
       })),
     }),
   );
   const features = buildFeatures(selectedFeatures);
+
+  if (features.auth) {
+    const enableAuthRateLimit = ask(
+      await confirm({
+        message: "Add Redis-backed rate limiting to auth routes?",
+        initialValue: false,
+      }),
+    );
+    features.rateLimit = enableAuthRateLimit;
+  }
+
   const enabledFeatureLabels = FEATURE_KEYS.filter((key) => features[key]);
   cfg.modules = enabledFeatureLabels;
 

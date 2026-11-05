@@ -160,6 +160,8 @@ export async function readFeatureManifests(
     ["cors", config.framework],
     ["env"],
     ["zod", config.framework],
+    ["auth", config.framework],
+    ["rateLimit"],
     ["errorClass"],
     ["docker"],
   ];

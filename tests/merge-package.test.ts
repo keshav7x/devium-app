@@ -75,6 +75,8 @@ describe("mergePackage", () => {
         env: true,
         errorClass: false,
         zod: true,
+        auth: false,
+        rateLimit: false,
         docker: false,
       },
     });

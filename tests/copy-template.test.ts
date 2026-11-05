@@ -84,6 +84,8 @@ describe("feature generation", () => {
         env: true,
         errorClass: true,
         zod: true,
+        auth: true,
+        rateLimit: false,
         docker: true,
       },
     });

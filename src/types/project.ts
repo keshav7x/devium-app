@@ -9,6 +9,8 @@ export type FeatureKey =
   | "env"
   | "errorClass"
   | "zod"
+  | "auth"
+  | "rateLimit"
   | "docker";
 
 export type Features = Record<FeatureKey, boolean>;
@@ -29,6 +31,8 @@ export const FEATURE_KEYS: readonly FeatureKey[] = [
   "env",
   "errorClass",
   "zod",
+  "auth",
+  "rateLimit",
   "docker",
 ] as const;
 
@@ -38,6 +42,8 @@ export const FEATURE_LABELS: Record<FeatureKey, string> = {
   env: "Environment validation (Zod)",
   errorClass: "Custom error classes",
   zod: "Request validation (Zod)",
+  auth: "Auth (JWT)",
+  rateLimit: "Auth rate limit (Redis)",
   docker: "Docker configuration",
 };
 
@@ -48,6 +54,8 @@ export function buildFeatures(selected: readonly FeatureKey[]): Features {
     env: selected.includes("env"),
     errorClass: selected.includes("errorClass"),
     zod: selected.includes("zod"),
+    auth: selected.includes("auth"),
+    rateLimit: selected.includes("rateLimit") && selected.includes("auth"),
     docker: selected.includes("docker"),
   };
 }

@@ -63,6 +63,8 @@ describe("getRuntimeScripts", () => {
       env: false,
       errorClass: false,
       zod: false,
+      auth: false,
+      rateLimit: false,
       docker: false,
     },
   };

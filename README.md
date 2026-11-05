@@ -12,7 +12,7 @@ Choose your stack, answer a few prompts, and get a clean project with sensible d
 | Runtime | Node.js LTS or Bun |
 | Package manager | npm, pnpm, yarn, or Bun |
 | Database | PostgreSQL with Drizzle or Prisma |
-| Optional modules | Pino logger, CORS, Zod env validation, custom error classes, request validation, Docker |
+| Optional modules | Pino logger, CORS, Zod env validation, custom error classes, request validation, auth scaffold, auth rate limit, Docker |
 
 ## Quick start
 
@@ -184,6 +184,8 @@ Devium installs only the packages required by your choices.
 | CORS | `cors` for Express or `@fastify/cors` for Fastify |
 | Zod env validation | `zod` |
 | Request validation | `zod` |
+| Auth (JWT) | `zod`, `argon2`, `jsonwebtoken` (+ `@types/jsonwebtoken` dev) |
+| Auth rate limit | `ioredis`, `rate-limiter-flexible` |
 | Custom error classes | no dependency |
 | Docker | no dependency |
 | Node runtime dev | `tsx` |
@@ -195,6 +197,30 @@ Production Docker images install only production dependencies:
 - pnpm: `pnpm install --prod --frozen-lockfile --ignore-scripts`
 - yarn: `yarn install --production=true --frozen-lockfile --ignore-scripts`
 - Bun: `bun install --production --frozen-lockfile --ignore-scripts`
+
+## Auth scaffold
+
+If you select **Auth (JWT)**, Devium adds JWT bearer-token auth:
+
+- `POST /api/auth/register`
+- `POST /api/auth/login`
+- `POST /api/auth/logout`
+- `GET /api/auth/me`
+
+Passwords are hashed with Argon2id. Access tokens are signed with `jsonwebtoken` and expire after one hour. Set `JWT_SECRET` to a random string with at least 32 characters.
+
+Example:
+
+```bash
+curl -i -X POST http://localhost:3000/api/auth/register \
+  -H 'content-type: application/json' \
+  -d '{"email":"you@example.com","password":"a-strong-password","name":"You"}'
+
+curl -i http://localhost:3000/api/auth/me \
+  -H 'authorization: Bearer TOKEN'
+```
+
+If you also enable **Auth rate limit (Redis)**, only auth routes are rate limited and `REDIS_URL` becomes required.
 
 ## Docker
 

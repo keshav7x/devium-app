@@ -42,6 +42,9 @@ function expressImports(features: FeatureFlags): string[] {
     imports.push('import { requestLogger } from "./requestLogger.js";');
   }
   if (features.cors) imports.push('import { corsMiddleware } from "./cors.js";');
+  if (features.auth) {
+    imports.push('import { authRoutes } from "./auth/auth.routes.js";');
+  }
   if (features.zod) imports.push('import { demoRoutes } from "./demoRoutes.js";');
   if (features.errorClass) imports.push('import { AppError } from "../utils/errors.js";');
 
@@ -53,6 +56,9 @@ function expressRegistrations(features: FeatureFlags): string[] {
 
   if (features.logger) registrations.push("  app.use(requestLogger);");
   if (features.cors) registrations.push("  app.use(corsMiddleware);");
+  if (features.auth) {
+    registrations.push("  app.use(authRoutes);");
+  }
   if (features.zod) {
     registrations.push(
       '  if (process.env.NODE_ENV !== "production") app.use(demoRoutes);',
@@ -115,6 +121,9 @@ function fastifyImports(features: FeatureFlags): string[] {
 
   if (features.logger) imports.push('import { loggerOptions } from "../utils/logger.js";');
   if (features.cors) imports.push('import { registerCors } from "./cors.js";');
+  if (features.auth) {
+    imports.push('import { registerAuthRoutes } from "./auth/auth.routes.js";');
+  }
   if (features.zod) imports.push('import { registerDemoRoutes } from "./demoRoutes.js";');
   if (features.errorClass) imports.push('import { AppError } from "../utils/errors.js";');
 
@@ -125,6 +134,9 @@ function fastifyRegistrations(features: FeatureFlags): string[] {
   const registrations: string[] = [];
 
   if (features.cors) registrations.push("  await registerCors(app);");
+  if (features.auth) {
+    registrations.push("  await registerAuthRoutes(app);");
+  }
   if (features.zod) {
     registrations.push(
       '  if (process.env.NODE_ENV !== "production") await registerDemoRoutes(app);',

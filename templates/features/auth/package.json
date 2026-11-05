@@ -1,0 +1,10 @@
+{
+  "dependencies": {
+    "zod": "^4.6.7",
+    "argon2": "^0.44.0",
+    "jsonwebtoken": "^9.0.2"
+  },
+  "devDependencies": {
+    "@types/jsonwebtoken": "^9.0.10"
+  }
+}

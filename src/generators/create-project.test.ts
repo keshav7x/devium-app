@@ -28,6 +28,7 @@ const ALL_FEATURES: FeatureKey[] = [
   "env",
   "errorClass",
   "zod",
+  "auth",
   "docker",
 ];
 
@@ -102,6 +103,8 @@ describe("template generation", () => {
     expect(files).toContain("src/utils/errors.ts");
     expect(files).toContain("src/utils/validate.ts");
     expect(files).toContain("src/modules/demoRoutes.ts");
+    expect(files).toContain("src/modules/auth/auth.routes.ts");
+    expect(files).toContain("src/modules/auth/auth.service.ts");
     expect(files).toContain("Dockerfile");
     expect(files).not.toContain("Dockerfile.node");
     expect(files).not.toContain("Dockerfile.bun");
@@ -112,6 +115,7 @@ describe("template generation", () => {
     );
     expect(registry).toContain("corsMiddleware");
     expect(registry).toContain("AppError");
+    expect(registry).toContain("authRoutes");
 
     const server = await readFile(path.join(target, "src/server.ts"), "utf8");
     expect(server).toContain('import { client } from "./db/index.js";');
@@ -134,6 +138,8 @@ describe("template generation", () => {
       "pino-http": expect.any(String),
       cors: expect.any(String),
       zod: expect.any(String),
+      argon2: expect.any(String),
+      jsonwebtoken: expect.any(String),
     });
     expect(manifest.devDependencies).toMatchObject({
       "drizzle-kit": expect.any(String),

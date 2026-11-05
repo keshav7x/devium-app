@@ -8,45 +8,59 @@ import { applyLineMarkers, hasUnresolvedMarkers } from "./markers";
 import { writeDockerfile } from "./docker";
 import { getTemplatesDir } from "../utils/paths";
 
-const FRAMEWORK_DIRS = new Set(["express", "fastify"]);
-const FEATURE_ORDER = ["logger", "cors", "env", "errorClass", "zod", "docker"] as const;
+const FEATURE_LAYER_DIRS = new Set(["express", "fastify", "drizzle", "prisma"]);
+const FEATURE_ORDER = [
+  "logger",
+  "cors",
+  "env",
+  "errorClass",
+  "zod",
+  "auth",
+  "rateLimit",
+  "docker",
+] as const;
+
+async function overlayFeatureLayer(
+  sourceRoot: string,
+  targetDir: string,
+  skip: (entry: import("node:fs").Dirent) => boolean = () => false,
+): Promise<void> {
+  if (!existsSync(sourceRoot)) return;
+
+  const filter = (source: string): boolean =>
+    path.basename(source) !== "package.json";
+  const entries = await fs.readdir(sourceRoot, { withFileTypes: true });
+
+  for (const entry of entries) {
+    if (entry.name === "package.json") continue;
+    if (skip(entry)) continue;
+
+    await fs.cp(
+      path.join(sourceRoot, entry.name),
+      path.join(targetDir, entry.name),
+      {
+        recursive: true,
+        force: true,
+        filter,
+      },
+    );
+  }
+}
 
 async function overlayFeature(
   feature: string,
-  framework: string,
+  config: ProjectConfig,
   targetDir: string,
 ): Promise<void> {
   const root = path.join(getTemplatesDir(), "features", feature);
   if (!existsSync(root)) return;
 
-  const filter = (source: string): boolean =>
-    path.basename(source) !== "package.json";
+  const skipFeatureLayer = (entry: import("node:fs").Dirent): boolean =>
+    entry.isDirectory() && FEATURE_LAYER_DIRS.has(entry.name);
 
-  const sharedEntries = await fs.readdir(root, { withFileTypes: true });
-  for (const entry of sharedEntries) {
-    if (entry.name === "package.json") continue;
-    if (entry.isDirectory() && FRAMEWORK_DIRS.has(entry.name)) continue;
-    await fs.cp(path.join(root, entry.name), path.join(targetDir, entry.name), {
-      recursive: true,
-      force: true,
-      filter,
-    });
-  }
-
-  const frameworkRoot = path.join(root, framework);
-  if (existsSync(frameworkRoot)) {
-    const frameworkEntries = await fs.readdir(frameworkRoot, {
-      withFileTypes: true,
-    });
-    for (const entry of frameworkEntries) {
-      if (entry.name === "package.json") continue;
-      await fs.cp(
-        path.join(frameworkRoot, entry.name),
-        path.join(targetDir, entry.name),
-        { recursive: true, force: true, filter },
-      );
-    }
-  }
+  await overlayFeatureLayer(root, targetDir, skipFeatureLayer);
+  await overlayFeatureLayer(path.join(root, config.framework), targetDir);
+  await overlayFeatureLayer(path.join(root, config.orm), targetDir);
 }
 
 function ormCleanupSnippet(config: ProjectConfig): {
@@ -191,7 +205,7 @@ export async function applyFeatures(
 ): Promise<void> {
   for (const feature of FEATURE_ORDER) {
     if (config.features[feature]) {
-      await overlayFeature(feature, config.framework, targetDir);
+      await overlayFeature(feature, config, targetDir);
     }
   }
 
