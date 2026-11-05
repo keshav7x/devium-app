@@ -40,6 +40,7 @@ describe("mergePackage", () => {
     expect(pkg.scripts.build).toBe("tsc");
     expect(pkg.scripts.start).toBe("node dist/server.js");
     expect(pkg.scripts["db:generate"]).toBe("drizzle-kit generate");
+    expect(pkg.devDependencies.tsx).toBeDefined();
   });
 
   test("merges fastify + prisma manifests with runtime scripts", async () => {
@@ -61,6 +62,7 @@ describe("mergePackage", () => {
     expect(pkg.devDependencies.prisma).toBeDefined();
     expect(pkg.scripts.dev).toBe("bun --watch src/server.ts");
     expect(pkg.scripts.start).toBe("bun dist/server.js");
+    expect(pkg.devDependencies.tsx).toBeUndefined();
     expect(pkg.scripts["db:migrate"]).toBe("prisma migrate dev");
     expect(pkg.scripts.postinstall).toBe("prisma generate");
   });

@@ -83,6 +83,31 @@ export function mergeManifests(manifests: readonly PackageManifest[]): PackageMa
   return merged;
 }
 
+const NODE_ONLY_DEV_DEPENDENCIES = ["tsx"] as const;
+
+function pruneRuntimeDevDependencies(
+  manifest: PackageManifest,
+  config: ProjectConfig,
+): PackageManifest {
+  if (config.runtime !== "bun" || !manifest.devDependencies) {
+    return manifest;
+  }
+
+  const devDependencies = { ...manifest.devDependencies };
+
+  for (const dependency of NODE_ONLY_DEV_DEPENDENCIES) {
+    delete devDependencies[dependency];
+  }
+
+  if (Object.keys(devDependencies).length === 0) {
+    delete manifest.devDependencies;
+  } else {
+    manifest.devDependencies = devDependencies;
+  }
+
+  return manifest;
+}
+
 export function getRuntimeScripts(config: ProjectConfig): Record<string, string> {
   return {
     dev:
@@ -184,9 +209,14 @@ export async function mergePackage(
 
   merged.name = config.name;
 
+  const mergedWithRuntimeDependencies = pruneRuntimeDevDependencies(
+    merged,
+    config,
+  );
+
   await fs.writeFile(
     targetManifestPath,
-    `${JSON.stringify(merged, null, 2)}\n`,
+    `${JSON.stringify(mergedWithRuntimeDependencies, null, 2)}\n`,
   );
 
   report("✓ Package configuration merged");
