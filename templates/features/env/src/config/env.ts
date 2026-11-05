@@ -7,6 +7,8 @@ const envSchema = z.object({
     .default("development"),
   PORT: z.coerce.number().int().positive().default(3000),
   HOST: z.string().min(1).default("localhost"),
+  LOG_LEVEL: z.string().min(1).default("info"),
+  CORS_ORIGIN: z.string().optional(),
   DATABASE_URL: z.string().min(1).optional(),
 });
 

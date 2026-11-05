@@ -19,13 +19,15 @@ function expressRegistry(config: ProjectConfig): string {
   }
   if (features.zod) {
     imports.push('import { demoRoutes } from "./demoRoutes.js";');
-    registrations.push("  app.use(demoRoutes);");
+    registrations.push(
+      "  if (process.env.NODE_ENV !== \"production\") app.use(demoRoutes);",
+    );
   }
   if (features.errorClass) {
     imports.push('import { AppError } from "../utils/errors.js";');
     errorLines.push("    if (err instanceof AppError) {");
     errorLines.push(
-      "      res.status(err.statusCode).json({ error: err.message });",
+      "      res.status(err.statusCode).json({ error: err.statusCode >= 500 ? \"Internal Server Error\" : err.message });",
     );
     errorLines.push("      return;");
     errorLines.push("    }");
@@ -82,13 +84,15 @@ function fastifyRegistry(config: ProjectConfig): string {
   }
   if (features.zod) {
     imports.push('import { registerDemoRoutes } from "./demoRoutes.js";');
-    registrations.push("  await registerDemoRoutes(app);");
+    registrations.push(
+      "  if (process.env.NODE_ENV !== \"production\") await registerDemoRoutes(app);",
+    );
   }
   if (features.errorClass) {
     imports.push('import { AppError } from "../utils/errors.js";');
     errorLines.push("    if (err instanceof AppError) {");
     errorLines.push(
-      "      reply.status(err.statusCode).send({ error: err.message });",
+      "      reply.status(err.statusCode).send({ error: err.statusCode >= 500 ? \"Internal Server Error\" : err.message });",
     );
     errorLines.push("      return;");
     errorLines.push("    }");

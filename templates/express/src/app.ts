@@ -4,7 +4,25 @@ import { registerErrorHandler, registerModules } from "./modules/index.js";
 export function createApp() {
   const app = express();
 
-  app.use(express.json());
+  app.disable("x-powered-by");
+  app.use((_req, res, next) => {
+    res.set({
+      "x-content-type-options": "nosniff",
+      "x-frame-options": "DENY",
+      "referrer-policy": "no-referrer",
+      "content-security-policy": "default-src 'none'; frame-ancestors 'none'",
+      "permissions-policy": "camera=(), microphone=(), geolocation=()",
+    });
+    if (process.env.NODE_ENV === "production") {
+      res.set(
+        "strict-transport-security",
+        "max-age=31536000; includeSubDomains; preload",
+      );
+    }
+    next();
+  });
+
+  app.use(express.json({ limit: "100kb" }));
 
   registerModules(app);
 
