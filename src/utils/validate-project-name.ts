@@ -1,11 +1,10 @@
 const RESERVED_NAMES = new Set([
   "node_modules",
   "favicon.ico",
-  "con",
-  "prn",
-  "aux",
-  "nul",
 ]);
+
+const WINDOWS_DEVICE_NAME = /^(con|prn|aux|nul|com[1-9]|lpt[1-9])$/i;
+const WINDOWS_DEVICE_FILE = /^(con|prn|aux|nul|com[1-9]|lpt[1-9])\.[^/\\]*$/i;
 
 export interface NameValidation {
   valid: boolean;
@@ -31,7 +30,17 @@ export function validateProjectName(name: string): NameValidation {
         "Use lowercase letters, digits, hyphens, underscores or dots, starting with a letter or digit.",
     };
   }
-  if (RESERVED_NAMES.has(trimmed.toLowerCase())) {
+  if (trimmed.endsWith(".")) {
+    return {
+      valid: false,
+      error: "Project name must not end with a dot.",
+    };
+  }
+  if (
+    RESERVED_NAMES.has(trimmed.toLowerCase()) ||
+    WINDOWS_DEVICE_NAME.test(trimmed) ||
+    WINDOWS_DEVICE_FILE.test(trimmed)
+  ) {
     return {
       valid: false,
       error: `"${trimmed}" is a reserved name.`,

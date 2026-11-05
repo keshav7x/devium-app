@@ -44,6 +44,9 @@ export async function createProject(
   const targetDir = path.resolve(cwd, config.name);
   await validateDirectory(targetDir);
   const createdDirectory = !existsSync(targetDir);
+  if (createdDirectory) {
+    await fs.mkdir(targetDir);
+  }
   phase("validate", "done");
 
   try {

@@ -12,7 +12,11 @@ export function getTemplatesDir(): string {
   let dir = moduleDir;
   for (let depth = 0; depth < 8; depth += 1) {
     const candidate = path.join(dir, "templates");
-    if (existsSync(path.join(candidate, "base", "package.json"))) {
+    const packageManifest = path.join(dir, "package.json");
+    if (
+      existsSync(packageManifest) &&
+      existsSync(path.join(candidate, "base", "package.json"))
+    ) {
       cachedTemplatesDir = candidate;
       return cachedTemplatesDir;
     }
