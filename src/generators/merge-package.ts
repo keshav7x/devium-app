@@ -22,17 +22,38 @@ const FORBIDDEN_MANIFEST_KEYS = new Set([
   "prototype",
 ]);
 
-function mergeObject<T>(target: Record<string, T>, source: Record<string, T> | undefined): void {
+const MANIFEST_SECTIONS = new Set([
+  "scripts",
+  "dependencies",
+  "devDependencies",
+]);
+
+function isForbiddenManifestKey(key: string): boolean {
+  return FORBIDDEN_MANIFEST_KEYS.has(key);
+}
+
+function mergeStringMap(
+  target: Record<string, string>,
+  source: Record<string, string> | undefined,
+): void {
   if (!source) return;
+
   for (const [key, value] of Object.entries(source)) {
-    if (FORBIDDEN_MANIFEST_KEYS.has(key)) continue;
+    if (isForbiddenManifestKey(key)) continue;
     target[key] = value;
   }
 }
 
-function setOther(target: Record<string, unknown>, key: string, value: unknown): void {
-  if (FORBIDDEN_MANIFEST_KEYS.has(key)) return;
-  target[key] = value;
+function mergeOtherFields(
+  target: Record<string, unknown>,
+  manifest: PackageManifest,
+): void {
+  for (const [key, value] of Object.entries(manifest)) {
+    if (MANIFEST_SECTIONS.has(key)) continue;
+    if (isForbiddenManifestKey(key)) continue;
+
+    target[key] = value;
+  }
 }
 
 export function mergeManifests(manifests: readonly PackageManifest[]): PackageManifest {
@@ -43,19 +64,10 @@ export function mergeManifests(manifests: readonly PackageManifest[]): PackageMa
 
   for (const manifest of manifests) {
     if (!manifest || typeof manifest !== "object") continue;
-    mergeObject(scripts, manifest.scripts);
-    mergeObject(dependencies, manifest.dependencies);
-    mergeObject(devDependencies, manifest.devDependencies);
-    for (const [key, value] of Object.entries(manifest)) {
-      if (
-        key === "scripts" ||
-        key === "dependencies" ||
-        key === "devDependencies"
-      ) {
-        continue;
-      }
-      setOther(others, key, value);
-    }
+    mergeStringMap(scripts, manifest.scripts);
+    mergeStringMap(dependencies, manifest.dependencies);
+    mergeStringMap(devDependencies, manifest.devDependencies);
+    mergeOtherFields(others, manifest);
   }
 
   for (const dependency of Object.keys(dependencies)) {

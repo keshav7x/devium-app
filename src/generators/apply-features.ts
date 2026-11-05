@@ -2,16 +2,14 @@ import { report } from "../ui/reporter";
 import { existsSync } from "node:fs";
 import fs from "node:fs/promises";
 import path from "node:path";
-import type { PackageManager, ProjectConfig } from "../types/project";
+import type { ProjectConfig } from "../types/project";
 import { buildRegistrySource } from "./registry";
-import {
-  applyInlineMarkers,
-  applyLineMarkers,
-  hasUnresolvedMarkers,
-} from "./markers";
+import { applyLineMarkers, hasUnresolvedMarkers } from "./markers";
+import { writeDockerfile } from "./docker";
 import { getTemplatesDir } from "../utils/paths";
 
 const FRAMEWORK_DIRS = new Set(["express", "fastify"]);
+const FEATURE_ORDER = ["logger", "cors", "env", "errorClass", "zod", "docker"] as const;
 
 async function overlayFeature(
   feature: string,
@@ -51,32 +49,6 @@ async function overlayFeature(
   }
 }
 
-function dockerInstallCommand(packageManager: PackageManager): string {
-  switch (packageManager) {
-    case "npm":
-      return "npm ci";
-    case "pnpm":
-      return "corepack enable && pnpm install --frozen-lockfile";
-    case "yarn":
-      return "corepack enable && yarn install --frozen-lockfile";
-    case "bun":
-      return "bun install --frozen-lockfile";
-  }
-}
-
-function dockerProdInstallCommand(packageManager: PackageManager): string {
-  switch (packageManager) {
-    case "npm":
-      return "npm ci --omit=dev --ignore-scripts";
-    case "pnpm":
-      return "corepack enable && pnpm install --prod --frozen-lockfile --ignore-scripts";
-    case "yarn":
-      return "corepack enable && yarn install --production=true --frozen-lockfile --ignore-scripts";
-    case "bun":
-      return "bun install --production --frozen-lockfile --ignore-scripts";
-  }
-}
-
 function ormCleanupSnippet(config: ProjectConfig): {
   importLine: string;
   cleanup: string;
@@ -107,6 +79,43 @@ function requireReplacement(
   return content.replace(search, replacement);
 }
 
+const PLAIN_DATABASE_URL = "const databaseUrl = process.env.DATABASE_URL;";
+const PLAIN_DATABASE_URL_REQUIRED = `${PLAIN_DATABASE_URL}
+if (!databaseUrl) {
+  throw new Error(
+    "Missing required environment variable: DATABASE_URL. " +
+      "Copy .env.example to .env and set it to your PostgreSQL connection string.",
+  );
+}`;
+const ZOD_DATABASE_URL_OPTIONAL = "DATABASE_URL: z.string().min(1).optional(),";
+const ZOD_DATABASE_URL_REQUIRED = `DATABASE_URL: z
+    .string()
+    .min(1, "DATABASE_URL is required")
+    .refine(
+      (value) => /^postgres(ql)?:\\/\\//.test(value),
+      "DATABASE_URL must be a postgres:// or postgresql:// URL",
+    ),`;
+
+async function patchPlainEnv(envPath: string, content: string): Promise<void> {
+  const patched = requireReplacement(
+    content,
+    PLAIN_DATABASE_URL,
+    PLAIN_DATABASE_URL_REQUIRED,
+    "env.ts",
+  );
+  await fs.writeFile(envPath, patched);
+}
+
+async function patchZodEnv(envPath: string, content: string): Promise<void> {
+  const patched = requireReplacement(
+    content,
+    ZOD_DATABASE_URL_OPTIONAL,
+    ZOD_DATABASE_URL_REQUIRED,
+    "env.ts",
+  );
+  await fs.writeFile(envPath, patched);
+}
+
 async function patchEnvDatabaseUrl(
   targetDir: string,
   config: ProjectConfig,
@@ -116,38 +125,12 @@ async function patchEnvDatabaseUrl(
   const envPath = path.join(targetDir, "src", "config", "env.ts");
   const content = await fs.readFile(envPath, "utf8");
 
-  if (content.includes("const databaseUrl = process.env.DATABASE_URL;")) {
-    const patched = requireReplacement(
-      content,
-      "const databaseUrl = process.env.DATABASE_URL;",
-      `const databaseUrl = process.env.DATABASE_URL;
-if (!databaseUrl) {
-  throw new Error(
-    "Missing required environment variable: DATABASE_URL. " +
-      "Copy .env.example to .env and set it to your PostgreSQL connection string.",
-  );
-}`,
-      "env.ts",
-    );
-    await fs.writeFile(envPath, patched);
-    return;
+  if (content.includes(PLAIN_DATABASE_URL)) {
+    return patchPlainEnv(envPath, content);
   }
 
-  if (content.includes("DATABASE_URL: z.string().min(1).optional(),")) {
-    const patched = requireReplacement(
-      content,
-      "DATABASE_URL: z.string().min(1).optional(),",
-      `DATABASE_URL: z
-    .string()
-    .min(1, "DATABASE_URL is required")
-    .refine(
-      (value) => /^postgres(ql)?:\\/\\//.test(value),
-      "DATABASE_URL must be a postgres:// or postgresql:// URL",
-    ),`,
-      "env.ts",
-    );
-    await fs.writeFile(envPath, patched);
-    return;
+  if (content.includes(ZOD_DATABASE_URL_OPTIONAL)) {
+    return patchZodEnv(envPath, content);
   }
 
   throw new Error(
@@ -206,42 +189,14 @@ export async function applyFeatures(
   config: ProjectConfig,
   targetDir: string,
 ): Promise<void> {
-  for (const feature of [
-    "logger",
-    "cors",
-    "env",
-    "errorClass",
-    "zod",
-    "docker",
-  ] as const) {
+  for (const feature of FEATURE_ORDER) {
     if (config.features[feature]) {
       await overlayFeature(feature, config.framework, targetDir);
     }
   }
 
   if (config.features.docker) {
-    const templatePath = path.join(
-      getTemplatesDir(),
-      "features",
-      "docker",
-      `Dockerfile.${config.runtime}`,
-    );
-    if (!existsSync(templatePath)) {
-      throw new Error(
-        `Missing Dockerfile template for runtime "${config.runtime}".`,
-      );
-    }
-    let dockerContent = await fs.readFile(templatePath, "utf8");
-    dockerContent = applyInlineMarkers(dockerContent, {
-      installCmd: dockerInstallCommand(config.packageManager),
-      prodInstallCmd: dockerProdInstallCommand(config.packageManager),
-      buildCmd: `${config.packageManager} run build`,
-    });
-    await fs.writeFile(path.join(targetDir, "Dockerfile"), dockerContent);
-    for (const leftover of ["Dockerfile.node", "Dockerfile.bun"]) {
-      const leftoverPath = path.join(targetDir, leftover);
-      if (existsSync(leftoverPath)) await fs.rm(leftoverPath);
-    }
+    await writeDockerfile(config, targetDir);
   }
 
   const registryPath = path.join(targetDir, "src", "modules", "index.ts");

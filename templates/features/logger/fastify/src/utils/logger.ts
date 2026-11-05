@@ -1,15 +1,17 @@
 const isProduction = process.env.NODE_ENV === "production";
 
+const firstUrlSeparatorOrNull = (value: string): number | null => {
+  const positions = [value.indexOf("?"), value.indexOf("#")]
+    .filter((position) => position !== -1);
+
+  return positions.length === 0 ? null : Math.min(...positions);
+};
+
 const sanitizeUrl = (value: unknown): unknown => {
   if (typeof value !== "string") return value;
-  const query = value.indexOf("?");
-  const fragment = value.indexOf("#");
-  const end = query === -1
-    ? fragment
-    : fragment === -1
-      ? query
-      : Math.min(query, fragment);
-  return end === -1 ? value : value.slice(0, end);
+
+  const end = firstUrlSeparatorOrNull(value);
+  return end === null ? value : value.slice(0, end);
 };
 
 const requestSerializer = (req: any) => ({
