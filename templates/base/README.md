@@ -31,7 +31,7 @@ curl -i http://localhost:3000/api/auth/me \
   -H 'authorization: Bearer TOKEN'
 ```
 
-The auth scaffold uses Argon2id password hashing and short-lived JWT access tokens. Set `JWT_SECRET` to a random string with at least 32 characters. If auth rate limiting was enabled, set `REDIS_URL` too.
+The auth scaffold uses bcrypt password hashing and one-hour JWT access tokens. `JWT_SECRET` must be a random string with at least 32 characters. If auth rate limiting was enabled, `REDIS_URL` is also required. Logout increments the user token version, revoking previously issued tokens.
 
 ## Development
 

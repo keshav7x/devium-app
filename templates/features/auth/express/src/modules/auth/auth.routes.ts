@@ -4,6 +4,7 @@ import {
   getUserFromToken,
   loginUser,
   registerUser,
+  revokeAuthToken,
 } from "./auth.service.js";
 import {
   loginSchema,
@@ -32,14 +33,19 @@ authRoutes.post("/api/auth/register", async (req, res) => {
   }
 
   const email = result.data.email.trim().toLowerCase();
-  if (!consumeAuthAttempt(sessionKey("register", req.ip, email))) {
+  const rateLimit = await consumeAuthAttempt(sessionKey("register", req.ip, email));
+  if (rateLimit === "limited") {
     res.status(429).json({ error: "Too many attempts" });
+    return;
+  }
+  if (rateLimit === "unavailable") {
+    res.status(503).json({ error: "Auth rate limiting unavailable" });
     return;
   }
 
   const outcome = await registerUser(result.data);
   if (!outcome.ok) {
-    res.status(409).json({ error: "Email already registered" });
+    res.status(409).json({ error: "Unable to create account" });
     return;
   }
 
@@ -57,8 +63,13 @@ authRoutes.post("/api/auth/login", async (req, res) => {
   }
 
   const email = result.data.email.trim().toLowerCase();
-  if (!consumeAuthAttempt(sessionKey("login", req.ip, email))) {
+  const rateLimit = await consumeAuthAttempt(sessionKey("login", req.ip, email));
+  if (rateLimit === "limited") {
     res.status(429).json({ error: "Too many attempts" });
+    return;
+  }
+  if (rateLimit === "unavailable") {
+    res.status(503).json({ error: "Auth rate limiting unavailable" });
     return;
   }
 
@@ -71,7 +82,8 @@ authRoutes.post("/api/auth/login", async (req, res) => {
   res.status(200).json({ token: outcome.token, user: outcome.user });
 });
 
-authRoutes.post("/api/auth/logout", (_req, res) => {
+authRoutes.post("/api/auth/logout", async (req, res) => {
+  await revokeAuthToken(bearerToken(req.headers.authorization));
   res.status(204).send();
 });
 

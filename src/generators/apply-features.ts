@@ -130,6 +130,78 @@ async function patchZodEnv(envPath: string, content: string): Promise<void> {
   await fs.writeFile(envPath, patched);
 }
 
+const PLAIN_JWT_SECRET_REQUIRED = `const jwtSecret = process.env.JWT_SECRET;
+if (!jwtSecret || jwtSecret.length < 32) {
+  throw new Error(
+    "JWT_SECRET environment variable is required and must be at least 32 characters.",
+  );
+}`;
+const PLAIN_REDIS_URL_REQUIRED = `const redisUrl = process.env.REDIS_URL;
+if (!redisUrl) {
+  throw new Error(
+    "REDIS_URL environment variable is required for auth rate limiting.",
+  );
+}`;
+const ZOD_HOST_LINE = '  HOST: z.string().min(1).default("localhost"),\n';
+const ZOD_JWT_SECRET_REQUIRED =
+  '  JWT_SECRET: z.string().min(32, "JWT_SECRET must be at least 32 characters"),\n';
+const ZOD_REDIS_URL_REQUIRED =
+  '  REDIS_URL: z.string().min(1, "REDIS_URL is required"),\n';
+
+async function patchPlainEnvRequired(
+  envPath: string,
+  content: string,
+  config: ProjectConfig,
+): Promise<void> {
+  const checks: string[] = [];
+
+  if (config.features.auth) checks.push(PLAIN_JWT_SECRET_REQUIRED);
+  if (config.features.rateLimit) checks.push(PLAIN_REDIS_URL_REQUIRED);
+  if (checks.length === 0) return;
+
+  const patched = requireReplacement(
+    content,
+    PLAIN_DATABASE_URL,
+    `${PLAIN_DATABASE_URL}\n${checks.join("\n")}`,
+    "env.ts",
+  );
+  await fs.writeFile(envPath, patched);
+}
+
+async function patchZodEnvRequired(
+  envPath: string,
+  content: string,
+  config: ProjectConfig,
+): Promise<void> {
+  const fields: string[] = [];
+
+  if (config.features.auth) fields.push(ZOD_JWT_SECRET_REQUIRED);
+  if (config.features.rateLimit) fields.push(ZOD_REDIS_URL_REQUIRED);
+  if (fields.length === 0) return;
+
+  const patched = requireReplacement(
+    content,
+    ZOD_HOST_LINE,
+    `${ZOD_HOST_LINE}${fields.join("")}`,
+    "env.ts",
+  );
+  await fs.writeFile(envPath, patched);
+}
+
+async function patchEnvRequired(
+  targetDir: string,
+  config: ProjectConfig,
+): Promise<void> {
+  const envPath = path.join(targetDir, "src", "config", "env.ts");
+  const content = await fs.readFile(envPath, "utf8");
+
+  if (content.includes(ZOD_HOST_LINE)) {
+    return patchZodEnvRequired(envPath, content, config);
+  }
+
+  return patchPlainEnvRequired(envPath, content, config);
+}
+
 async function patchEnvDatabaseUrl(
   targetDir: string,
   config: ProjectConfig,
@@ -218,6 +290,7 @@ export async function applyFeatures(
   await fs.writeFile(registryPath, buildRegistrySource(config));
 
   await patchEnvDatabaseUrl(targetDir, config);
+  await patchEnvRequired(targetDir, config);
   await patchServerOrm(targetDir, config);
   await patchReadme(targetDir, config);
   await assertNoLeftoverMarkers(targetDir);

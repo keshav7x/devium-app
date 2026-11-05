@@ -184,7 +184,7 @@ Devium installs only the packages required by your choices.
 | CORS | `cors` for Express or `@fastify/cors` for Fastify |
 | Zod env validation | `zod` |
 | Request validation | `zod` |
-| Auth (JWT) | `zod`, `argon2`, `jsonwebtoken` (+ `@types/jsonwebtoken` dev) |
+| Auth (JWT) | `zod`, `bcryptjs`, `jsonwebtoken` (+ types dev) |
 | Auth rate limit | `ioredis`, `rate-limiter-flexible` |
 | Custom error classes | no dependency |
 | Docker | no dependency |
@@ -207,7 +207,7 @@ If you select **Auth (JWT)**, Devium adds JWT bearer-token auth:
 - `POST /api/auth/logout`
 - `GET /api/auth/me`
 
-Passwords are hashed with Argon2id. Access tokens are signed with `jsonwebtoken` and expire after one hour. Set `JWT_SECRET` to a random string with at least 32 characters.
+Passwords are hashed with bcrypt. Access tokens are signed with `jsonwebtoken`, use HS256, and expire after one hour. Set `JWT_SECRET` to a random string with at least 32 characters; Devium validates it at startup. Logout increments the user token version, revoking previously issued tokens.
 
 Example:
 
@@ -220,7 +220,7 @@ curl -i http://localhost:3000/api/auth/me \
   -H 'authorization: Bearer TOKEN'
 ```
 
-If you also enable **Auth rate limit (Redis)**, only auth routes are rate limited and `REDIS_URL` becomes required.
+If you also enable **Auth rate limit (Redis)**, only auth routes are rate limited and `REDIS_URL` becomes required at startup. Redis unavailability returns `503` instead of allowing unlimited attempts.
 
 ## Docker
 

@@ -4,6 +4,7 @@ import {
   getUserFromToken,
   loginUser,
   registerUser,
+  revokeAuthToken,
 } from "./auth.service.js";
 import {
   loginSchema,
@@ -34,13 +35,19 @@ export async function registerAuthRoutes(app: FastifyInstance): Promise<void> {
     }
 
     const email = result.data.email.trim().toLowerCase();
-    if (!consumeAuthAttempt(sessionKey("register", request.ip, email))) {
+    const rateLimit = await consumeAuthAttempt(
+      sessionKey("register", request.ip, email),
+    );
+    if (rateLimit === "limited") {
       return reply.code(429).send({ error: "Too many attempts" });
+    }
+    if (rateLimit === "unavailable") {
+      return reply.code(503).send({ error: "Auth rate limiting unavailable" });
     }
 
     const outcome = await registerUser(result.data);
     if (!outcome.ok) {
-      return reply.code(409).send({ error: "Email already registered" });
+      return reply.code(409).send({ error: "Unable to create account" });
     }
 
     return reply.code(201).send({ token: outcome.token, user: outcome.user });
@@ -56,8 +63,14 @@ export async function registerAuthRoutes(app: FastifyInstance): Promise<void> {
     }
 
     const email = result.data.email.trim().toLowerCase();
-    if (!consumeAuthAttempt(sessionKey("login", request.ip, email))) {
+    const rateLimit = await consumeAuthAttempt(
+      sessionKey("login", request.ip, email),
+    );
+    if (rateLimit === "limited") {
       return reply.code(429).send({ error: "Too many attempts" });
+    }
+    if (rateLimit === "unavailable") {
+      return reply.code(503).send({ error: "Auth rate limiting unavailable" });
     }
 
     const outcome = await loginUser(result.data);
@@ -68,7 +81,8 @@ export async function registerAuthRoutes(app: FastifyInstance): Promise<void> {
     return reply.code(200).send({ token: outcome.token, user: outcome.user });
   });
 
-  app.post("/api/auth/logout", async (_request, reply) => {
+  app.post("/api/auth/logout", async (request, reply) => {
+    await revokeAuthToken(bearerToken(request.headers.authorization));
     return reply.code(204).send();
   });
 

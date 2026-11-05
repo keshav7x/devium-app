@@ -5,8 +5,22 @@ import {
   registerModules,
 } from "./modules/index.js";
 
+function parseTrustProxy(
+  value: string | undefined,
+): boolean | number | string | undefined {
+  if (!value) return undefined;
+  if (value === "true") return true;
+  if (value === "false") return false;
+  const count = Number(value);
+  return Number.isInteger(count) ? count : value;
+}
+
 export async function createApp() {
-  const app = Fastify(fastifyOptions);
+  const trustProxy = parseTrustProxy(process.env.TRUST_PROXY);
+  const app = Fastify({
+    ...fastifyOptions,
+    ...(trustProxy === undefined ? {} : { trustProxy }),
+  });
 
   app.addHook("onSend", async (_request, reply) => {
     reply.header("x-content-type-options", "nosniff");

@@ -1,4 +1,4 @@
-import { eq } from "drizzle-orm";
+import { eq, sql } from "drizzle-orm";
 import { db } from "../../db/index.js";
 import { users } from "../../db/schema.js";
 import { hashPassword, verifyPassword } from "./auth.password.js";
@@ -15,6 +15,13 @@ export type AuthUser = {
 export type AuthResult =
   | { ok: true; user: AuthUser; token: string }
   | { ok: false; reason: "email_taken" | "invalid_credentials" };
+
+function isUniqueViolation(error: unknown): boolean {
+  if (!error || typeof error !== "object") return false;
+
+  const code = (error as { code?: unknown }).code;
+  return code === "23505" || code === "P2002";
+}
 
 const TIMING_SAFE_PASSWORD_HASH = "AAAAAAAAAAAAAAAAAAAAAA==:AAAAAAAAAAAAAAAAAAAAAA==";
 
@@ -40,14 +47,22 @@ export async function registerUser(input: RegisterInput): Promise<AuthResult> {
   }
 
   const passwordHash = await hashPassword(input.password);
-  const [user] = await db
-    .insert(users)
-    .values({
-      email,
-      passwordHash,
-      name: input.name?.trim() || null,
-    })
-    .returning();
+  let user: typeof users.$inferSelect | undefined;
+  try {
+    [user] = await db
+      .insert(users)
+      .values({
+        email,
+        passwordHash,
+        name: input.name?.trim() || null,
+      })
+      .returning();
+  } catch (error) {
+    if (isUniqueViolation(error)) {
+      return { ok: false, reason: "email_taken" };
+    }
+    throw error;
+  }
 
   if (!user) {
     throw new Error("Unable to create user");
@@ -56,7 +71,7 @@ export async function registerUser(input: RegisterInput): Promise<AuthResult> {
   return {
     ok: true,
     user: toAuthUser(user),
-    token: signAuthToken({ sub: user.id, email: user.email }),
+    token: signAuthToken({ sub: user.id, tokenVersion: user.tokenVersion }),
   };
 }
 
@@ -78,7 +93,7 @@ export async function loginUser(input: LoginInput): Promise<AuthResult> {
   return {
     ok: true,
     user: toAuthUser(user),
-    token: signAuthToken({ sub: user.id, email: user.email }),
+    token: signAuthToken({ sub: user.id, tokenVersion: user.tokenVersion }),
   };
 }
 
@@ -94,5 +109,19 @@ export async function getUserFromToken(token: string | undefined): Promise<AuthU
     .where(eq(users.id, payload.sub))
     .limit(1);
 
-  return user ? toAuthUser(user) : null;
+  if (!user || user.tokenVersion !== payload.tokenVersion) return null;
+
+  return toAuthUser(user);
+}
+
+export async function revokeAuthToken(token: string | undefined): Promise<void> {
+  if (!token) return;
+
+  const payload = verifyAuthToken(token);
+  if (!payload) return;
+
+  await db
+    .update(users)
+    .set({ tokenVersion: (sql`  ${users.tokenVersion} + 1`) })
+    .where(eq(users.id, payload.sub));
 }

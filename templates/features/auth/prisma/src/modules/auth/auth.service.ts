@@ -14,6 +14,13 @@ export type AuthResult =
   | { ok: true; user: AuthUser; token: string }
   | { ok: false; reason: "email_taken" | "invalid_credentials" };
 
+function isUniqueViolation(error: unknown): boolean {
+  if (!error || typeof error !== "object") return false;
+
+  const code = (error as { code?: unknown }).code;
+  return code === "23505" || code === "P2002";
+}
+
 const TIMING_SAFE_PASSWORD_HASH = "AAAAAAAAAAAAAAAAAAAAAA==:AAAAAAAAAAAAAAAAAAAAAA==";
 
 function toAuthUser(user: {
@@ -39,18 +46,26 @@ export async function registerUser(input: RegisterInput): Promise<AuthResult> {
   }
 
   const passwordHash = await hashPassword(input.password);
-  const user = await prisma.user.create({
-    data: {
-      email,
-      passwordHash,
-      name: input.name?.trim() || null,
-    },
-  });
+  let user: AuthUser;
+  try {
+    user = await prisma.user.create({
+      data: {
+        email,
+        passwordHash,
+        name: input.name?.trim() || null,
+      },
+    });
+  } catch (error) {
+    if (isUniqueViolation(error)) {
+      return { ok: false, reason: "email_taken" };
+    }
+    throw error;
+  }
 
   return {
     ok: true,
     user: toAuthUser(user),
-    token: signAuthToken({ sub: user.id, email: user.email }),
+    token: signAuthToken({ sub: user.id, tokenVersion: user.tokenVersion }),
   };
 }
 
@@ -68,7 +83,7 @@ export async function loginUser(input: LoginInput): Promise<AuthResult> {
   return {
     ok: true,
     user: toAuthUser(user),
-    token: signAuthToken({ sub: user.id, email: user.email }),
+    token: signAuthToken({ sub: user.id, tokenVersion: user.tokenVersion }),
   };
 }
 
@@ -79,5 +94,19 @@ export async function getUserFromToken(token: string | undefined): Promise<AuthU
   if (!payload) return null;
 
   const user = await prisma.user.findUnique({ where: { id: payload.sub } });
-  return user ? toAuthUser(user) : null;
+  if (!user || user.tokenVersion !== payload.tokenVersion) return null;
+
+  return toAuthUser(user);
+}
+
+export async function revokeAuthToken(token: string | undefined): Promise<void> {
+  if (!token) return;
+
+  const payload = verifyAuthToken(token);
+  if (!payload) return;
+
+  await prisma.user.updateMany({
+    where: { id: payload.sub },
+    data: { tokenVersion: { increment: 1 } },
+  });
 }

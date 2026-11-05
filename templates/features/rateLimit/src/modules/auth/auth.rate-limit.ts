@@ -1,6 +1,8 @@
 import Redis from "ioredis";
 import { RateLimiterRedis } from "rate-limiter-flexible";
 
+export type AuthRateLimitResult = "allowed" | "limited" | "unavailable";
+
 function redisUrl(): string {
   const url = process.env.REDIS_URL;
   if (!url) {
@@ -23,11 +25,13 @@ const limiter = new RateLimiterRedis({
   duration: 60,
 });
 
-export async function consumeAuthAttempt(key: string): Promise<boolean> {
+export async function consumeAuthAttempt(
+  key: string,
+): Promise<AuthRateLimitResult> {
   try {
     await limiter.consume(key, 1);
-    return true;
+    return "allowed";
   } catch {
-    return false;
+    return redis.status === "ready" ? "limited" : "unavailable";
   }
 }

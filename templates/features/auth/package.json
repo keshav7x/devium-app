@@ -1,10 +1,11 @@
 {
   "dependencies": {
     "zod": "^4.6.7",
-    "argon2": "^0.44.0",
+    "bcryptjs": "^3.0.2",
     "jsonwebtoken": "^9.0.2"
   },
   "devDependencies": {
+    "@types/bcryptjs": "^2.4.6",
     "@types/jsonwebtoken": "^9.0.10"
   }
 }

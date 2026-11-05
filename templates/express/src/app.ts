@@ -1,8 +1,21 @@
 import express from "express";
 import { registerErrorHandler, registerModules } from "./modules/index.js";
 
+function parseTrustProxy(value: string | undefined): boolean | number | string | undefined {
+  if (!value) return undefined;
+  if (value === "true") return true;
+  if (value === "false") return false;
+  const count = Number(value);
+  return Number.isInteger(count) ? count : value;
+}
+
 export function createApp() {
   const app = express();
+
+  const trustProxy = parseTrustProxy(process.env.TRUST_PROXY);
+  if (trustProxy !== undefined) {
+    app.set("trust proxy", trustProxy);
+  }
 
   app.disable("x-powered-by");
   app.use((_req, res, next) => {
