@@ -1,9 +1,8 @@
 {
-  "name": "devium-app",
+  "name": "@deviumbuilds/cli",
   "version": "0.1.0",
-  "description": "CLI to generate production-ready TypeScript backend projects (Express/Fastify, Drizzle/Prisma, PostgreSQL)",
+  "description": "Interactive CLI to generate production-ready TypeScript backend projects (Express/Fastify, Drizzle/Prisma, PostgreSQL)",
   "type": "module",
-  "private": true,
   "bin": {
     "devium": "./dist/index.js"
   },
@@ -15,8 +14,37 @@
     "dev": "bun --watch src/index.ts",
     "start": "bun src/index.ts",
     "build": "tsup",
+    "prepack": "bun run build",
     "typecheck": "tsc --noEmit",
     "test": "vitest run"
+  },
+  "keywords": [
+    "backend",
+    "typescript",
+    "scaffold",
+    "generator",
+    "cli",
+    "express",
+    "fastify",
+    "drizzle",
+    "prisma",
+    "postgresql"
+  ],
+  "author": "Keshav Chetri <keshavcodes0@gmail.com>",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/keshav7x/devium-app.git"
+  },
+  "homepage": "https://github.com/keshav7x/devium-app#readme",
+  "bugs": {
+    "url": "https://github.com/keshav7x/devium-app/issues"
+  },
+  "engines": {
+    "node": ">=20"
+  },
+  "publishConfig": {
+    "access": "public"
   },
   "dependencies": {
     "@clack/prompts": "^1.8.1",
