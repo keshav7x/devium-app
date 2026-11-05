@@ -16,6 +16,25 @@ export interface PackageManifest {
   [key: string]: unknown;
 }
 
+const FORBIDDEN_MANIFEST_KEYS = new Set([
+  "__proto__",
+  "constructor",
+  "prototype",
+]);
+
+function mergeObject<T>(target: Record<string, T>, source: Record<string, T> | undefined): void {
+  if (!source) return;
+  for (const [key, value] of Object.entries(source)) {
+    if (FORBIDDEN_MANIFEST_KEYS.has(key)) continue;
+    target[key] = value;
+  }
+}
+
+function setOther(target: Record<string, unknown>, key: string, value: unknown): void {
+  if (FORBIDDEN_MANIFEST_KEYS.has(key)) return;
+  target[key] = value;
+}
+
 export function mergeManifests(manifests: readonly PackageManifest[]): PackageManifest {
   const scripts: Record<string, string> = {};
   const dependencies: Record<string, string> = {};
@@ -23,9 +42,10 @@ export function mergeManifests(manifests: readonly PackageManifest[]): PackageMa
   const others: Record<string, unknown> = {};
 
   for (const manifest of manifests) {
-    Object.assign(scripts, manifest.scripts);
-    Object.assign(dependencies, manifest.dependencies);
-    Object.assign(devDependencies, manifest.devDependencies);
+    if (!manifest || typeof manifest !== "object") continue;
+    mergeObject(scripts, manifest.scripts);
+    mergeObject(dependencies, manifest.dependencies);
+    mergeObject(devDependencies, manifest.devDependencies);
     for (const [key, value] of Object.entries(manifest)) {
       if (
         key === "scripts" ||
@@ -34,7 +54,7 @@ export function mergeManifests(manifests: readonly PackageManifest[]): PackageMa
       ) {
         continue;
       }
-      others[key] = value;
+      setOther(others, key, value);
     }
   }
 

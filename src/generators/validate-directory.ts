@@ -2,7 +2,10 @@ import fs from "node:fs/promises";
 
 export async function validateDirectory(targetDir: string): Promise<void> {
   try {
-    const stats = await fs.stat(targetDir);
+    const stats = await fs.lstat(targetDir);
+    if (stats.isSymbolicLink()) {
+      throw new Error(`Refusing to use a symbolic link: ${targetDir}`);
+    }
     if (!stats.isDirectory()) {
       throw new Error(
         `Destination already exists and is not a directory: ${targetDir}`,
