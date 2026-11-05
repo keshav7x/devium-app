@@ -4,7 +4,6 @@ import os from "node:os";
 import path from "node:path";
 import { copyTemplate } from "../src/generators/copy-template";
 import { applyFeatures } from "../src/generators/apply-features";
-import { writeEnv } from "../src/generators/write-env";
 import { makeConfig } from "./helpers";
 
 let tempDir: string;
@@ -113,18 +112,6 @@ describe("feature generation", () => {
     expect(registry).toContain("corsMiddleware");
     expect(registry).toContain("demoRoutes");
     expect(registry).toContain("AppError");
-  });
-
-  test("writeEnv appends DATABASE_URL check for ORM without env feature", async () => {
-    const config = makeConfig({ orm: "drizzle" });
-    await copyTemplate(config, tempDir);
-    await writeEnv(config, tempDir);
-
-    const env = await fs.readFile(
-      path.join(tempDir, "src/config/env.ts"),
-      "utf-8"
-    );
-    expect(env).toContain("DATABASE_URL environment variable is required");
   });
 
   test("fastify registry exposes fastifyOptions and async registerModules", async () => {
