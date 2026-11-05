@@ -1,0 +1,53 @@
+# Dependency directories
+node_modules/
+jspm_packages/
+web_modules/
+
+# Next.js/Nuxt.js/Build outputs (if applicable)
+dist/
+build/
+.next/
+out/
+
+# Environment variables and secrets
+.env
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+*.env
+!.env.example
+
+# Runtime & Package Manager logs
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+bun.lockb
+.bun-cache/
+
+# IDE / Editor folders
+.idea/
+.vscode/
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?
+
+# OS metadata
+.DS_Store
+Thumbs.db
+
+# Databases & local containers (Prisma/Drizzle/Redis)
+*.db
+*.db-journal
+.database/
+docker-compose.override.yml
+
+# Diagnostic logs
+logs
+*.log
+
+# Generated Prisma client (Prisma ORM)
+src/generated/
