@@ -2,8 +2,8 @@
 FROM oven/bun:1-alpine AS deps
 WORKDIR /app
 COPY package.json bun.lockb* bun.lock* prisma.config.ts* prisma*/ ./
-RUN {{installCmd}}
 RUN mkdir -p src/generated
+RUN {{installCmd}}
 
 FROM oven/bun:1-alpine AS build
 WORKDIR /app
@@ -14,11 +14,11 @@ RUN {{buildCmd}}
 
 FROM oven/bun:1-alpine AS runtime
 WORKDIR /app
-ENV NODE_ENV=production
+ENV NODE_ENV=production HOST=0.0.0.0
 RUN addgroup -S app && adduser -S app -G app
-COPY --from=build --chown=app:app /app/node_modules ./node_modules
+COPY package.json bun.lockb* bun.lock* ./
+RUN {{prodInstallCmd}}
 COPY --from=build --chown=app:app /app/dist ./dist
-COPY --from=build --chown=app:app /app/package.json ./package.json
 
 USER app
 
