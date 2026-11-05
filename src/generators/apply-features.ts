@@ -54,26 +54,26 @@ async function overlayFeature(
 function dockerInstallCommand(packageManager: PackageManager): string {
   switch (packageManager) {
     case "npm":
-      return "npm install";
+      return "npm ci";
     case "pnpm":
-      return "corepack enable && pnpm install";
+      return "corepack enable && pnpm install --frozen-lockfile";
     case "yarn":
-      return "corepack enable && yarn install";
+      return "corepack enable && yarn install --frozen-lockfile";
     case "bun":
-      return "bun install";
+      return "bun install --frozen-lockfile";
   }
 }
 
-function dockerPruneCommand(packageManager: PackageManager): string {
+function dockerProdInstallCommand(packageManager: PackageManager): string {
   switch (packageManager) {
     case "npm":
-      return "RUN npm prune --omit=dev";
+      return "npm ci --omit=dev --ignore-scripts";
     case "pnpm":
-      return "RUN pnpm prune --prod";
+      return "corepack enable && pnpm install --prod --frozen-lockfile --ignore-scripts";
     case "yarn":
-      return "RUN yarn prune --prod";
+      return "corepack enable && yarn install --production=true --frozen-lockfile --ignore-scripts";
     case "bun":
-      return "";
+      return "bun install --production --frozen-lockfile --ignore-scripts";
   }
 }
 
@@ -232,11 +232,9 @@ export async function applyFeatures(
       );
     }
     let dockerContent = await fs.readFile(templatePath, "utf8");
-    dockerContent = applyLineMarkers(dockerContent, {
-      pruneCmd: dockerPruneCommand(config.packageManager),
-    });
     dockerContent = applyInlineMarkers(dockerContent, {
       installCmd: dockerInstallCommand(config.packageManager),
+      prodInstallCmd: dockerProdInstallCommand(config.packageManager),
       buildCmd: `${config.packageManager} run build`,
     });
     await fs.writeFile(path.join(targetDir, "Dockerfile"), dockerContent);
