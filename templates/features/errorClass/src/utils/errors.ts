@@ -8,7 +8,10 @@ export class AppError extends Error {
   ) {
     super(message, options);
     this.name = new.target.name;
-    this.statusCode = statusCode;
+    this.statusCode =
+      Number.isInteger(statusCode) && statusCode >= 400 && statusCode < 600
+        ? statusCode
+        : 500;
   }
 }
 
